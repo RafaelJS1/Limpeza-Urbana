@@ -43,13 +43,19 @@
   function enhanceTable(tableId,records){
     const tbody=document.getElementById(tableId); if(!tbody)return;
     const table=tbody.closest('table'), head=table?.querySelector('thead tr'); if(!head)return;
-    if(!head.querySelector('.detail-head')){const th=document.createElement('th');th.className='detail-head';th.textContent='Detalhes';head.appendChild(th)}
+
+    // Mantém exatamente uma coluna de detalhes, mesmo quando outro script reconstrói a tabela.
+    head.querySelectorAll('.detail-head').forEach((el,i)=>{if(i>0)el.remove()});
+    if(!head.querySelector('.detail-head')){
+      const th=document.createElement('th'); th.className='detail-head'; th.textContent='Detalhes'; head.appendChild(th);
+    }
+
     [...tbody.querySelectorAll('tr')].forEach((tr,i)=>{
-      if(tr.querySelector('.detail-cell'))return;
-      const td=document.createElement('td');td.className='detail-cell';
+      tr.querySelectorAll('.detail-cell').forEach((el,j)=>{if(j>0)el.remove()});
+      let td=tr.querySelector('.detail-cell');
+      if(!td){td=document.createElement('td');td.className='detail-cell';tr.appendChild(td)}
       const r=records[i];
       td.innerHTML=r?`<button type="button" class="actionbtn" onclick="openRegistroDetalhes('${r.id}')">👁 Ver detalhes</button>`:'-';
-      tr.appendChild(td);
     });
   }
 
@@ -60,10 +66,17 @@
     enhanceTable('reportTable',getFilteredReportRecords());
   }
 
-  const obs=new MutationObserver(()=>queueMicrotask(enhance));
+  let scheduled=false;
+  const scheduleEnhance=()=>{
+    if(scheduled)return;
+    scheduled=true;
+    setTimeout(()=>{scheduled=false;enhance()},0);
+  };
+
+  const obs=new MutationObserver(scheduleEnhance);
   window.addEventListener('DOMContentLoaded',()=>{
     ['allRegs','reportTable'].forEach(id=>{const el=document.getElementById(id);if(el)obs.observe(el,{childList:true,subtree:true})});
-    document.getElementById('filterBtn')?.addEventListener('click',()=>setTimeout(enhance,0));
+    document.getElementById('filterBtn')?.addEventListener('click',()=>setTimeout(enhance,20));
     setTimeout(enhance,300);
   });
 })();
