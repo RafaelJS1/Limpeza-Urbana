@@ -56,8 +56,6 @@
 
   function enhance(){
     if(typeof DB==='undefined')return;
-    const prod=DB.registros.slice().sort((a,b)=>String(b.data).localeCompare(String(a.data)));
-    enhanceTable('allRegs',prod);
     enhanceTable('reportTable',getFilteredReportRecords());
   }
 
@@ -65,7 +63,8 @@
   const scheduleEnhance=()=>{if(scheduled)return;scheduled=true;setTimeout(()=>{scheduled=false;enhance()},0)};
   const obs=new MutationObserver(scheduleEnhance);
   window.addEventListener('DOMContentLoaded',()=>{
-    ['allRegs','reportTable'].forEach(id=>{const el=document.getElementById(id);if(el)obs.observe(el,{childList:true,subtree:true})});
+    const report=document.getElementById('reportTable');
+    if(report)obs.observe(report,{childList:true,subtree:true});
     document.getElementById('filterBtn')?.addEventListener('click',()=>setTimeout(enhance,20));
     setTimeout(enhance,300);
   });
