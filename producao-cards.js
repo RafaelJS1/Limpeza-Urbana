@@ -6,6 +6,7 @@
   }
 
   function atualizarCards(){
+    if(typeof window.renderProducaoMensal==='function') return;
     const box=document.getElementById('productionCards');
     if(!box||typeof DB==='undefined'||!Array.isArray(DB.registros)) return;
     const regs=DB.registros;
@@ -28,12 +29,19 @@
     if(!box) return;
     let ocupado=false;
     new MutationObserver(()=>{
+      if(typeof window.renderProducaoMensal==='function') return;
       if(ocupado)return;
       ocupado=true;
       requestAnimationFrame(()=>{atualizarCards();ocupado=false});
     }).observe(box,{childList:true});
-    document.querySelector('[data-page="producao"]')?.addEventListener('click',()=>setTimeout(atualizarCards,80));
-    setTimeout(atualizarCards,500);
+    document.querySelector('[data-page="producao"]')?.addEventListener('click',()=>{
+      if(typeof window.renderProducaoMensal==='function') setTimeout(window.renderProducaoMensal,80);
+      else setTimeout(atualizarCards,80);
+    });
+    setTimeout(()=>{
+      if(typeof window.renderProducaoMensal==='function') window.renderProducaoMensal();
+      else atualizarCards();
+    },500);
   };
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',iniciar);else iniciar();
 })();
