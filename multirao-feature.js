@@ -7,12 +7,26 @@
 
   function isMultirao(){return document.getElementById('rsituacao')?.value==='multirao'}
 
+  function updateMutiraoFields(){
+    const mutirao=isMultirao();
+    const parada=document.getElementById('rsituacao')?.value==='parada';
+    const setor=document.getElementById('rsetor');
+    const obs=document.getElementById('robs');
+    if(setor) setor.required=!(mutirao||parada);
+    if(obs){
+      obs.required=mutirao;
+      obs.placeholder=mutirao?'Informe a região/local do mutirão e outros detalhes...':'';
+    }
+  }
+
   async function saveMutirao(status){
     const msg=document.getElementById('regmsg');
     const data=document.getElementById('rdata')?.value;
     const equipe=document.getElementById('requipe')?.value;
-    const setor=document.getElementById('rsetor')?.value;
-    if(!data||!equipe||!setor){msg.className='msg err full';msg.textContent='Informe data, equipe e setor do mutirão.';return}
+    const setor=document.getElementById('rsetor')?.value||null;
+    const observacoes=document.getElementById('robs')?.value?.trim()||'';
+    if(!data||!equipe){msg.className='msg err full';msg.textContent='Informe data e equipe do mutirão.';return}
+    if(!observacoes){msg.className='msg err full';msg.textContent='Informe na observação a região/local do mutirão.';document.getElementById('robs')?.focus();return}
     const concluido=status==='concluido';
     const payload={
       data,
@@ -20,9 +34,9 @@
       setor_id:setor,
       periodo:document.getElementById('rperiodo')?.value||'integral',
       viagens:concluido?Number(document.getElementById('rviagens')?.value||0):0,
-      capacidade:concluido?Number(document.getElementById('rcap')?.value||0):Number(document.getElementById('rcap')?.value||0),
+      capacidade:Number(document.getElementById('rcap')?.value||0),
       material:concluido?(document.getElementById('rmaterial')?.value||null):null,
-      observacoes:document.getElementById('robs')?.value||null,
+      observacoes,
       status:concluido?'concluido':'andamento',
       situacao:'multirao',
       veiculo_id:null,
@@ -45,6 +59,12 @@
 
   function wireButtons(){
     ensureMutiraoOption();
+    const situ=document.getElementById('rsituacao');
+    if(situ&&!situ.dataset.mutiraoFields){
+      situ.addEventListener('change',()=>setTimeout(updateMutiraoFields,0));
+      situ.dataset.mutiraoFields='1';
+    }
+    updateMutiraoFields();
     const pre=document.getElementById('preRegistroBtn');
     const actions=document.getElementById('regForm')?.querySelector('.actions');
     const fin=actions?Array.from(actions.querySelectorAll('button')).find(b=>b.textContent.includes('Salvar como concluído')):null;
@@ -55,7 +75,7 @@
       const old=fin.onclick; fin.onclick=()=>isMultirao()?saveMutirao('concluido'):old?.(); fin.dataset.mutirao='1';
     }
     const note=document.querySelector('#regForm .workflow-note');
-    if(note&&!note.textContent.includes('Mutirão')) note.innerHTML='<b>Fluxo diário:</b> pela manhã salve como pré-registro. Se a equipe não puder trabalhar, selecione <b>Equipe parada</b>. Quando duas ou mais equipes atuarem juntas na mesma região, selecione <b>Mutirão</b>.';
+    if(note) note.innerHTML='<b>Fluxo diário:</b> pela manhã salve como pré-registro. Se a equipe não puder trabalhar, selecione <b>Equipe parada</b>. Em <b>Mutirão</b>, o setor é opcional e informe obrigatoriamente a região/local na observação.';
   }
 
   const start=()=>{setTimeout(wireButtons,250);document.querySelector('[data-page="registro"]')?.addEventListener('click',()=>setTimeout(wireButtons,80));};
