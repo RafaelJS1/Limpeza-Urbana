@@ -126,6 +126,19 @@ function openTeam(teamId=''){
 }
 window.openTeam=openTeam;
 
+async function toggleTeam(teamId){
+  const e=eq(teamId);
+  if(!e) return;
+  const novoStatus=e.ativo===false;
+  const acao=novoStatus?'ativar':'desativar';
+  if(!confirm('Deseja '+acao+' a equipe "'+e.nome+'"?')) return;
+  try{
+    await req('/rest/v1/equipes?id=eq.'+teamId,{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify({ativo:novoStatus})});
+    await load();
+  }catch(err){alert('Não foi possível '+acao+' a equipe: '+err.message)}
+}
+window.toggleTeam=toggleTeam;
+
 function openSector(setorId=''){
   const s=setorId?st(setorId):null;
   modal(s?'Editar setor':'Novo setor',
@@ -166,7 +179,7 @@ function render(){
   }).join('');
 
   $('eqTable').innerHTML=DB.equipes.map(e=>`<tr>
-    <td><b>${esc(e.nome)}</b><br><button class="editlink" onclick="openTeam('${e.id}')">✏️ Editar equipe</button></td>
+    <td><b>${esc(e.nome)}</b><br><button class="editlink" onclick="openTeam('${e.id}')">✏️ Editar equipe</button><br><button class="editlink" style="background:${e.ativo===false?'#e5f8ed':'#fff0f0'};color:${e.ativo===false?'#118151':'#b42318'}" onclick="toggleTeam('${e.id}')">${e.ativo===false?'▶️ Ativar equipe':'⏸️ Desativar equipe'}</button></td>
     <td>${esc(e.responsavel||'Não informado')}</td><td>${e.pa}</td><td>${e.caminhoes}</td>
     <td>${DB.setores.filter(s=>s.equipe_id===e.id).length}</td><td><span class="badge ok">${e.ativo?'Ativa':'Inativa'}</span></td>
     <td><button class="actionbtn" onclick="openTeam('${e.id}')">✏️ Editar</button></td></tr>`).join('');
