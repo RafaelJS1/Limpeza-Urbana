@@ -22,9 +22,10 @@
       ['Setores atendidos no mês',setoresMes,'orange']
     ].map(x=>`<div class="card"><div class="label ${x[2]}">${x[0]}</div><div class="num ${x[2]}">${x[1]}</div><div class="sub">Atualização automática</div></div>`).join('');
 
-    const vals=DB.equipes.map(e=>mes.filter(r=>r.equipe_id===e.id).reduce((a,r)=>a+Number(r.viagens||0),0));
+    const equipesAtivas=DB.equipes.filter(e=>e.ativo===true);
+    const vals=equipesAtivas.map(e=>mes.filter(r=>r.equipe_id===e.id).reduce((a,r)=>a+Number(r.viagens||0),0));
     const mx=Math.max(1,...vals);
-    if($('bars')) $('bars').innerHTML=DB.equipes.map((e,i)=>`<div class="barwrap"><div class="bar" style="height:${Math.max(3,vals[i]/mx*145)}px"><b>${vals[i]}</b></div><span>${esc(e.nome)}</span></div>`).join('');
+    if($('bars')) $('bars').innerHTML=equipesAtivas.map((e,i)=>`<div class="barwrap"><div class="bar" style="height:${Math.max(3,vals[i]/mx*145)}px"><b>${vals[i]}</b></div><span>${esc(e.nome)}</span></div>`).join('')||'<p class="hint">Nenhuma equipe ativa cadastrada.</p>';
 
     const days={};mes.forEach(r=>days[r.data]=(days[r.data]||0)+Number(r.volume||0));
     const arr=Object.entries(days).sort(),max=Math.max(1,...arr.map(x=>x[1]));
@@ -32,7 +33,7 @@
     if($('volumeLine')) $('volumeLine').setAttribute('points',pts);
     if($('volumeArea')) $('volumeArea').setAttribute('points','0,180 '+pts+' 500,180');
 
-    if($('prodTable')) $('prodTable').innerHTML=DB.equipes.map(e=>{
+    if($('prodTable')) $('prodTable').innerHTML=equipesAtivas.map(e=>{
       const rr=mes.filter(r=>r.equipe_id===e.id);
       const v=rr.reduce((a,r)=>a+Number(r.viagens||0),0),m=rr.reduce((a,r)=>a+Number(r.volume||0),0);
       const ss=new Set(rr.map(r=>r.setor_id).filter(Boolean)).size;
