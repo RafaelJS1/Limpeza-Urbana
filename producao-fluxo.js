@@ -141,6 +141,9 @@
   window.openEditProducao=openEdit;
 
   function renderProductionFlow(){
+    // A listagem da Produção deve respeitar o mês selecionado no navegador mensal.
+    // Evita que este renderizador legado sobrescreva a tabela com registros de todos os meses.
+    if(typeof window.renderProducaoMensal==='function'){window.renderProducaoMensal();return;}
     if(typeof DB==='undefined'||!document.getElementById('allRegs')) return;
     const regs=DB.registros.slice().sort((a,b)=>(b.data||'').localeCompare(a.data||'') || String(b.created_at||'').localeCompare(String(a.created_at||'')));
     const andamento=regs.filter(r=>(r.status||'concluido')==='andamento');
