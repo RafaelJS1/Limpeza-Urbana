@@ -34,6 +34,7 @@
       material:status==='andamento'||parada?null:(document.getElementById('rmaterial')?.value||null),
       observacoes:document.getElementById('robs')?.value||null,
       status,
+      situacao_setor:parada?null:(document.getElementById('rsituacaoSetor')?.value||'retornar'),
       veiculo_id:parada?(document.getElementById('rveiculoParada')?.value||null):null,
       motivo_parada:parada?(document.getElementById('rmotivoParada')?.value||null):null,
       finalizado_em:status==='concluido'||parada?new Date().toISOString():null
@@ -47,10 +48,12 @@
     const setor=document.getElementById('rsetor')?.value;
     const parada=status==='parada';
     if(!data||!equipe||(!parada&&!setor)){msg.className='msg err full';msg.textContent=parada?'Informe data e equipe.':'Informe data, equipe e setor.';return}
+    if(!parada&&!document.getElementById('rsituacaoSetor')?.value){msg.className='msg err full';msg.textContent='Informe se será necessário retornar ao setor ou se ele foi concluído.';return}
     if(parada&&!document.getElementById('rmotivoParada')?.value){msg.className='msg err full';msg.textContent='Informe o motivo da paralisação.';return}
     msg.className='msg full';msg.textContent=parada?'Registrando equipe parada...':status==='andamento'?'Salvando pré-registro...':'Salvando registro concluído...';
     try{
-      const existing=DB.registros.find(r=>r.data===data&&r.equipe_id===equipe&&(r.status||'concluido')==='andamento');
+      const periodo=document.getElementById('rperiodo')?.value||'integral';
+      const existing=DB.registros.find(r=>r.data===data&&r.equipe_id===equipe&&r.setor_id===setor&&(r.periodo||'integral')===periodo&&(r.status||'concluido')==='andamento');
       const payload=formPayload(status);
       if(existing){
         await req('/rest/v1/registros?id=eq.'+existing.id,{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify(payload)});
@@ -95,7 +98,7 @@
     const actions=form.querySelector('.actions'); if(!actions) return;
     const oldSubmit=actions.querySelector('button[type="submit"],button:not([type])');
     if(oldSubmit) oldSubmit.style.display='none';
-    const note=document.createElement('div'); note.className='workflow-note full'; note.innerHTML='<b>Fluxo diário:</b> pela manhã salve como pré-registro. Se a equipe não puder trabalhar, selecione <b>Equipe parada</b> e informe o motivo.';
+    const note=document.createElement('div'); note.className='workflow-note full'; note.innerHTML='<b>Fluxo diário:</b> use os botões para indicar se o registro do dia é um pré-registro ou se o trabalho daquele período foi concluído. Separadamente, informe a situação do setor: se será necessário retornar ou se o setor já foi totalmente concluído.';
     actions.before(note);
     const pre=document.createElement('button'); pre.type='button'; pre.id='preRegistroBtn'; pre.className='btn btn-warning'; pre.textContent='🕘 Salvar pré-registro'; pre.onclick=()=>document.getElementById('rsituacao')?.value==='parada'?saveFromDaily('parada'):saveFromDaily('andamento');
     const fin=document.createElement('button'); fin.type='button'; fin.className='btn primary'; fin.textContent='✓ Salvar como concluído'; fin.onclick=()=>document.getElementById('rsituacao')?.value==='parada'?saveFromDaily('parada'):saveFromDaily('concluido');
@@ -126,9 +129,11 @@
       <label>Período<select name="periodo"><option value="matutino" ${r.periodo==='matutino'?'selected':''}>Matutino</option><option value="vespertino" ${r.periodo==='vespertino'?'selected':''}>Vespertino</option><option value="integral" ${(!r.periodo||r.periodo==='integral')?'selected':''}>Integral</option></select></label>
       <label class="modalfull">Setor ${stopped?'(opcional)':''}<select name="setor_id"><option value="">Sem setor</option>${DB.setores.filter(s=>s.equipe_id===r.equipe_id&&s.ativo).map(s=>`<option value="${s.id}" ${s.id===r.setor_id?'selected':''}>${esc(s.nome)}</option>`).join('')}</select></label>
       ${stopped?`<label class="modalfull">Motivo da parada<select name="motivo_parada"><option value="manutencao_equipamento" ${r.motivo_parada==='manutencao_equipamento'?'selected':''}>Manutenção de equipamento</option><option value="falta_caminhao" ${r.motivo_parada==='falta_caminhao'?'selected':''}>Falta de caminhão</option><option value="falta_pa" ${r.motivo_parada==='falta_pa'?'selected':''}>Falta de pá carregadeira</option><option value="chuva" ${r.motivo_parada==='chuva'?'selected':''}>Chuva</option><option value="falta_pessoal" ${r.motivo_parada==='falta_pessoal'?'selected':''}>Falta de pessoal</option><option value="outro" ${r.motivo_parada==='outro'?'selected':''}>Outro motivo</option></select></label>`:`<label>Viagens<input name="viagens" type="number" min="0" value="${Number(r.viagens||0)}"></label><label>Capacidade (m³)<input name="capacidade" type="number" min="0" step=".1" value="${Number(r.capacidade||13)}"></label>`}
+      <label>Situação do setor<select name="situacao_setor"><option value="retornar" ${r.situacao_setor==='retornar'?'selected':''}>Precisa retornar ao setor</option><option value="concluido" ${r.situacao_setor==='concluido'?'selected':''}>Setor concluído</option></select></label>
       <label class="modalfull">Observações<input name="observacoes" value="${esc(r.observacoes||'')}"></label>`,
       async fd=>{
         const payload={data:fd.get('data'),periodo:fd.get('periodo'),setor_id:fd.get('setor_id')||null,observacoes:fd.get('observacoes').trim()||null};
+        if(!stopped) payload.situacao_setor=fd.get('situacao_setor');
         if(stopped){payload.motivo_parada=fd.get('motivo_parada');payload.viagens=0;payload.capacidade=0}else{payload.viagens=+fd.get('viagens');payload.capacidade=+fd.get('capacidade')}
         await req('/rest/v1/registros?id=eq.'+id,{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify(payload)});
       });
@@ -144,8 +149,8 @@
     const totalM=concluidos.reduce((a,r)=>a+Number(r.volume||0),0);
     document.getElementById('productionCards').innerHTML=[['Em andamento',andamento.length,'orange'],['Concluídos',concluidos.length,'green'],['Paradas',paradas.length,'orange'],['Volume concluído',fmt(totalM)+' m³','green']].map(x=>`<div class="card"><div class="label ${x[2]}">${x[0]}</div><div class="num ${x[2]}">${x[1]}</div></div>`).join('');
     const table=document.getElementById('allRegs').closest('table');
-    table.querySelector('thead tr').innerHTML='<th>Data</th><th>Equipe</th><th>Período</th><th>Setor</th><th>Viagens</th><th>Volume</th><th>Status</th><th>Ações</th>';
-    document.getElementById('allRegs').innerHTML=regs.map(r=>`<tr><td>${r.data}</td><td><b>${esc(eq(r.equipe_id)?.nome||'-')}</b>${(r.status||'concluido')==='parada'?`<br><small style="color:#b45309">${esc(motivoLabel(r.motivo_parada))}</small>`:''}</td><td>${labelPeriodo(r.periodo)}</td><td>${esc(st(r.setor_id)?.nome||'-')}</td><td>${Number(r.viagens||0)}</td><td>${fmt(r.volume||0)} m³</td><td>${statusBadge(r.status||'concluido')}</td><td><div class="prod-actions">${(r.status||'concluido')==='andamento'?`<button class="btn primary" style="padding:7px 9px" onclick="openFinalizeProducao('${r.id}')">✓ Finalizar</button>`:''}<button class="actionbtn" onclick="openEditProducao('${r.id}')">✏️ Editar</button>${window.openRegistroDetalhes?`<button class="actionbtn" onclick="openRegistroDetalhes('${r.id}')">👁 Ver detalhes</button>`:''}</div></td></tr>`).join('')||'<tr><td colspan="8">Nenhum registro.</td></tr>';
+    table.querySelector('thead tr').innerHTML='<th>Data</th><th>Equipe</th><th>Período</th><th>Setor</th><th>Viagens</th><th>Volume</th><th>Registro do dia</th><th>Situação do setor</th><th>Ações</th>';
+    document.getElementById('allRegs').innerHTML=regs.map(r=>`<tr><td>${r.data}</td><td><b>${esc(eq(r.equipe_id)?.nome||'-')}</b>${(r.status||'concluido')==='parada'?`<br><small style="color:#b45309">${esc(motivoLabel(r.motivo_parada))}</small>`:''}</td><td>${labelPeriodo(r.periodo)}</td><td>${esc(st(r.setor_id)?.nome||'-')}</td><td>${Number(r.viagens||0)}</td><td>${fmt(r.volume||0)} m³</td><td>${statusBadge(r.status||'concluido')}</td><td>${r.status==='parada'?'—':r.situacao_setor==='concluido'?'<span class="badge ok">Setor concluído</span>':r.situacao_setor==='retornar'?'<span class="badge unlinked">Precisa retornar</span>':'<span class="badge">Não informado</span>'}</td><td><div class="prod-actions">${(r.status||'concluido')==='andamento'?`<button class="btn primary" style="padding:7px 9px" onclick="openFinalizeProducao('${r.id}')">✓ Finalizar</button>`:''}<button class="actionbtn" onclick="openEditProducao('${r.id}')">✏️ Editar</button>${window.openRegistroDetalhes?`<button class="actionbtn" onclick="openRegistroDetalhes('${r.id}')">👁 Ver detalhes</button>`:''}</div></td></tr>`).join('')||'<tr><td colspan="9">Nenhum registro.</td></tr>';
   }
   window.renderProductionFlow=renderProductionFlow;
 
