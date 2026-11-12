@@ -218,7 +218,7 @@ $('regForm').onsubmit=async e=>{
   e.preventDefault(); $('regmsg').textContent='Salvando...';
   try{
     await req('/rest/v1/registros',{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify({
-      data:$('rdata').value,equipe_id:$('requipe').value,setor_id:$('rsetor').value,status:$('rstatus').value,viagens:+$('rviagens').value,
+      data:$('rdata').value,equipe_id:$('requipe').value,setor_id:$('rsetor').value,status:'concluido',situacao_setor:$('rsituacaoSetor')?.value||'retornar',viagens:+$('rviagens').value,
       capacidade:+$('rcap').value,material:$('rmaterial').value,observacoes:$('robs').value
     })});
     $('regmsg').className='msg oktxt full'; $('regmsg').textContent='Registro salvo com sucesso.'; await load();
