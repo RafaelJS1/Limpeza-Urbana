@@ -57,7 +57,7 @@
     const form=document.getElementById('regForm');
     if(form?.dataset.saving==='true') return;
     if(form) form.dataset.saving='true';
-    const buttons=[document.getElementById('preRegistroBtn'),...Array.from(form?.querySelectorAll('.actions button')||[])];
+    const buttons=Array.from(new Set([document.getElementById('preRegistroBtn'),...Array.from(form?.querySelectorAll('.actions button')||[])].filter(Boolean)));
     buttons.forEach(b=>{if(b){b.disabled=true;b.dataset.originalText=b.textContent;b.textContent='Salvando...'}});
     const msg=document.getElementById('regmsg');
     const data=document.getElementById('rdata')?.value;
