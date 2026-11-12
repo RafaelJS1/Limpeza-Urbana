@@ -25,7 +25,7 @@
     if(!list)return;
     const now=new Date();
     if(label)label.textContent=now.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
-    const concluidos=mes.filter(r=>(r.status||'concluido')==='concluido'&&r.situacao!=='multirao'&&r.setor_id);
+    const concluidos=mes.filter(r=>r.situacao_setor==='concluido'&&r.situacao!=='multirao'&&r.setor_id);
     list.innerHTML=equipesAtivas.map(e=>{
       const setores=DB.setores.filter(s=>s.equipe_id===e.id&&s.ativo!==false);
       const total=setores.length;
