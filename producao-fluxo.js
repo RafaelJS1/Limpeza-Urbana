@@ -41,7 +41,24 @@
     };
   }
 
+  function showSaveToast(message,warning=false){
+    let toast=document.getElementById('saveSuccessToast');
+    if(!toast){
+      toast=document.createElement('div');toast.id='saveSuccessToast';
+      toast.style.cssText='position:fixed;right:18px;bottom:18px;z-index:9999;max-width:calc(100% - 36px);padding:14px 18px;border-radius:10px;background:#087f5b;color:#fff;font-weight:700;box-shadow:0 8px 28px #0003;opacity:0;transform:translateY(8px);transition:.2s';
+      document.body.appendChild(toast);
+    }
+    toast.style.background=warning?'#9a6500':'#087f5b';
+    toast.textContent=message;toast.style.opacity='1';toast.style.transform='translateY(0)';
+    clearTimeout(toast._hideTimer);toast._hideTimer=setTimeout(()=>{toast.style.opacity='0';toast.style.transform='translateY(8px)'},3500);
+  }
+
   async function saveFromDaily(status){
+    const form=document.getElementById('regForm');
+    if(form?.dataset.saving==='true') return;
+    if(form) form.dataset.saving='true';
+    const buttons=[document.getElementById('preRegistroBtn'),...Array.from(form?.querySelectorAll('.actions button')||[])];
+    buttons.forEach(b=>{if(b){b.disabled=true;b.dataset.originalText=b.textContent;b.textContent='Salvando...'}});
     const msg=document.getElementById('regmsg');
     const data=document.getElementById('rdata')?.value;
     const equipe=document.getElementById('requipe')?.value;
@@ -63,9 +80,15 @@
         msg.textContent=parada?'Equipe registrada como parada.':status==='andamento'?'Pré-registro salvo. A produção pode ser finalizada à tarde.':'Registro concluído salvo.';
       }
       msg.className='msg oktxt full';
-      await (window.load||load)();
-      renderProductionFlow();
-    }catch(e){msg.className='msg err full';msg.textContent=e.message}
+      try{await (window.load||load)()}catch(refreshError){console.error('Registro salvo, mas a atualização da tela falhou:',refreshError)}
+      go('dashboard');
+      showSaveToast(parada?'Equipe registrada com sucesso.':status==='andamento'?'Pré-registro salvo com sucesso.':'Registro concluído salvo com sucesso.');
+    }catch(e){
+      msg.className='msg err full';msg.textContent='Não foi possível salvar: '+e.message;
+    }finally{
+      if(form) delete form.dataset.saving;
+      buttons.forEach(b=>{if(b){b.disabled=false;if(b.dataset.originalText){b.textContent=b.dataset.originalText;delete b.dataset.originalText}}});
+    }
   }
 
   function updateStopEquipment(){
