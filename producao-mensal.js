@@ -6,6 +6,14 @@
   const motivoLabel=m=>({manutencao_equipamento:'Manutenção de equipamento',falta_caminhao:'Falta de caminhão',falta_pa:'Falta de pá carregadeira',chuva:'Chuva',falta_pessoal:'Falta de pessoal',outro:'Outro motivo'})[m]||m||'-';
   const badge=r=>r?.situacao==='multirao'?'<span class="badge" style="background:#e8f0ff;color:#3157a5">Mutirão</span>':(r?.status||'concluido')==='andamento'?'<span class="badge unlinked">Em andamento</span>':(r?.status||'concluido')==='parada'?'<span class="badge" style="background:#fff0e6;color:#b45309">Parada</span>':'<span class="badge ok">Concluído</span>';
 
+  const situacaoSetorBadge=r=>{
+    if(r?.situacao==='multirao') return '<span class="badge" style="background:#e8f0ff;color:#3157a5">Mutirão</span>';
+    if(r?.situacao==='parada'||r?.status==='parada') return '<span class="badge" style="background:#fff0e6;color:#b45309">Parada</span>';
+    if(r?.situacao_setor==='concluido') return '<span class="badge ok">Setor concluído</span>';
+    if(r?.situacao_setor==='retornar') return '<span class="badge unlinked">Precisa retornar</span>';
+    return '<span class="badge unlinked">Não informado</span>';
+  };
+
   function noMes(r){
     if(!r?.data)return false;
     const [y,m]=String(r.data).split('-').map(Number);
@@ -38,8 +46,8 @@
     const body=document.getElementById('allRegs');
     if(body){
       const table=body.closest('table');
-      table.querySelector('thead tr').innerHTML='<th>Data</th><th>Equipe</th><th>Período</th><th>Setor</th><th>Viagens</th><th>Volume</th><th>Status</th><th>Ações</th>';
-      body.innerHTML=regs.map(r=>`<tr><td>${r.data}</td><td><b>${esc(eq(r.equipe_id)?.nome||'-')}</b>${(r.status||'concluido')==='parada'?`<br><small style="color:#b45309">${esc(motivoLabel(r.motivo_parada))}</small>`:r.situacao==='multirao'?'<br><small style="color:#3157a5">Mutirão</small>':''}</td><td>${periodoLabel(r.periodo)}</td><td>${esc(st(r.setor_id)?.nome||'-')}</td><td>${Number(r.viagens||0)}</td><td>${fmt(r.volume||0)} m³</td><td>${badge(r)}</td><td><div class="prod-actions">${(r.status||'concluido')==='andamento'?`<button class="btn primary" style="padding:7px 9px" onclick="openFinalizeProducao('${r.id}')">✓ Finalizar</button>`:''}<button class="actionbtn" onclick="openEditProducao('${r.id}')">✏️ Editar</button>${window.openRegistroDetalhes?`<button class="actionbtn" onclick="openRegistroDetalhes('${r.id}')">👁 Ver detalhes</button>`:''}</div></td></tr>`).join('')||'<tr><td colspan="8">Nenhum registro neste mês.</td></tr>';
+      table.querySelector('thead tr').innerHTML='<th>Data</th><th>Equipe</th><th>Período</th><th>Setor</th><th>Viagens</th><th>Volume</th><th>Registro do dia</th><th>Situação do setor</th><th>Ações</th>';
+      body.innerHTML=regs.map(r=>`<tr><td>${r.data}</td><td><b>${esc(eq(r.equipe_id)?.nome||'-')}</b>${(r.status||'concluido')==='parada'?`<br><small style="color:#b45309">${esc(motivoLabel(r.motivo_parada))}</small>`:r.situacao==='multirao'?'<br><small style="color:#3157a5">Mutirão</small>':''}</td><td>${periodoLabel(r.periodo)}</td><td>${esc(st(r.setor_id)?.nome||'-')}</td><td>${Number(r.viagens||0)}</td><td>${fmt(r.volume||0)} m³</td><td>${badge(r)}</td><td>${situacaoSetorBadge(r)}</td><td><div class="prod-actions">${(r.status||'concluido')==='andamento'?`<button class="btn primary" style="padding:7px 9px" onclick="openFinalizeProducao('${r.id}')">✓ Finalizar</button>`:''}<button class="actionbtn" onclick="openEditProducao('${r.id}')">✏️ Editar</button>${window.openRegistroDetalhes?`<button class="actionbtn" onclick="openRegistroDetalhes('${r.id}')">👁 Ver detalhes</button>`:''}</div></td></tr>`).join('')||'<tr><td colspan="9">Nenhum registro neste mês.</td></tr>';
     }
     const label=document.getElementById('prodMesLabel'); if(label)label.textContent=mesNome(referencia);
   }
