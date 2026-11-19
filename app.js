@@ -235,19 +235,38 @@ $('addVeiculo').onclick=async()=>{
   await load();
 };
 
+function getReportRecords(){
+  const fini=$('fini').value, ffim=$('ffim').value, equipe=$('fequipe').value, setor=$('fsetor').value, periodo=$('fperiodo')?.value||'';
+  return DB.registros.filter(r=>(!fini||r.data>=fini)&&(!ffim||r.data<=ffim)&&(!equipe||r.equipe_id===equipe)&&(!setor||r.setor_id===setor)&&(!periodo||(r.periodo||'integral')===periodo));
+}
+function reportPeriodLabel(p){return ({matutino:'Matutino',vespertino:'Vespertino',integral:'Integral'})[p]||'Integral'}
+function reportStopReason(m){return ({manutencao_equipamento:'Manutenção de equipamento',falta_caminhao:'Falta de caminhão',falta_pa:'Falta de pá carregadeira',chuva:'Chuva',falta_pessoal:'Falta de pessoal',outro:'Outro motivo'})[m]||m||'Não informado'}
 function filterReport(){
-  const rs=DB.registros.filter(r=>(!$('fini').value||r.data>=$('fini').value)&&(!$('ffim').value||r.data<=$('ffim').value)&&(!$('fequipe').value||r.equipe_id===$('fequipe').value)&&(!$('fsetor').value||r.setor_id===$('fsetor').value));
-  $('reportCards').innerHTML=[['Viagens Totais',rs.reduce((a,r)=>a+Number(r.viagens||0),0)],['Volume Total',fmt(rs.reduce((a,r)=>a+Number(r.volume||0),0))+' m³'],['Setores Atendidos',new Set(rs.map(r=>r.setor_id)).size],['Equipes Ativas',new Set(rs.map(r=>r.equipe_id)).size]].map(x=>`<div class="card"><div class="label">${x[0]}</div><div class="num green">${x[1]}</div></div>`).join('');
-  $('reportTable').innerHTML=rs.map(r=>`<tr><td>${r.data}</td><td>${esc(eq(r.equipe_id)?.nome||'-')}</td><td>${esc(st(r.setor_id)?.nome||'-')}</td><td>${r.viagens}</td><td>${fmt(r.volume)}</td><td>${esc(r.material||'-')}</td></tr>`).join('')||'<tr><td colspan="6">Nenhum resultado.</td></tr>';
+  const rs=getReportRecords(), stops=rs.filter(r=>r.status==='parada'||r.situacao==='parada');
+  const producao=rs.filter(r=>r.status!=='parada'&&r.situacao!=='parada');
+  const viagens=producao.reduce((a,r)=>a+Number(r.viagens||0),0), volume=producao.reduce((a,r)=>a+Number(r.volume||0),0);
+  const reasons={};stops.forEach(r=>{const k=reportStopReason(r.motivo_parada);reasons[k]=(reasons[k]||0)+1});
+  $('reportCards').innerHTML=[
+    ['Viagens realizadas',viagens],['Volume removido',fmt(volume)+' m³'],['Setores atendidos',new Set(producao.map(r=>r.setor_id).filter(Boolean)).size],
+    ['Equipes no período',new Set(rs.map(r=>r.equipe_id).filter(Boolean)).size],['Paradas registradas',stops.length],['Motivos diferentes',Object.keys(reasons).length]
+  ].map((x,i)=>'<div class="card"><div class="label">'+x[0]+'</div><div class="num '+(i>=4?'orange':'green')+'">'+x[1]+'</div></div>').join('');
+  $('reportTable').innerHTML=rs.slice().sort((a,b)=>(b.data||'').localeCompare(a.data||'')).map(r=>'<tr><td>'+esc(r.data)+'</td><td>'+esc(eq(r.equipe_id)?.nome||'-')+'</td><td>'+esc(st(r.setor_id)?.nome||'-')+'</td><td>'+reportPeriodLabel(r.periodo)+'</td><td>'+Number(r.viagens||0)+'</td><td>'+fmt(r.volume||0)+'</td><td>'+esc(r.material||'-')+'</td><td>'+(r.status==='parada'||r.situacao==='parada'?'<span class="badge" style="background:#fff0e6;color:#b45309">Parada</span>':r.status==='andamento'?'<span class="badge unlinked">Pré-registro</span>':'<span class="badge ok">Concluído</span>')+'</td></tr>').join('')||'<tr><td colspan="8">Nenhum resultado.</td></tr>';
+  const reasonRows=Object.entries(reasons).sort((a,b)=>b[1]-a[1]).map(([reason,count])=>'<tr><td>'+esc(reason)+'</td><td>'+count+'</td></tr>').join('');
+  $('reportStopCards').innerHTML=Object.entries(reasons).sort((a,b)=>b[1]-a[1]).map(([reason,count])=>'<div class="card"><div class="label">'+esc(reason)+'</div><div class="num orange">'+count+'</div></div>').join('')||'<p class="sub">Nenhuma parada registrada no período selecionado.</p>';
+  $('reportStopTable').innerHTML=stops.slice().sort((a,b)=>(b.data||'').localeCompare(a.data||'')).map(r=>'<tr><td>'+esc(r.data||'-')+'</td><td>'+esc(eq(r.equipe_id)?.nome||'-')+'</td><td>'+esc(st(r.setor_id)?.nome||'Não informado')+'</td><td>'+reportPeriodLabel(r.periodo)+'</td><td>'+esc(reportStopReason(r.motivo_parada))+'</td><td>'+esc(DB.veiculos.find(v=>v.id===r.veiculo_id)?.codigo||'Não informado')+'</td><td>'+esc(r.observacoes||'-')+'</td></tr>').join('')||'<tr><td colspan="7">Nenhuma parada registrada no período.</td></tr>';
+  $('reportStopReasonTable').innerHTML=reasonRows||'<tr><td colspan="2">Sem ocorrências.</td></tr>';
 }
 $('filterBtn').onclick=filterReport;
-
+$('printReportBtn').onclick=()=>{filterReport();window.print()};
 $('csvBtn').onclick=()=>{
-  const rows=[['Data','Equipe','Setor','Viagens','Volume','Material'],...DB.registros.map(r=>[r.data,eq(r.equipe_id)?.nome||'',st(r.setor_id)?.nome||'',r.viagens,r.volume,r.material||''])];
-  const csv='\ufeff'+rows.map(a=>a.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(';')).join('\n');
-  const a=document.createElement('a'); a.href=window.URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download='relatorio-limpeza-urbana.csv'; a.click();
+  const rs=getReportRecords(), stops=rs.filter(r=>r.status==='parada'||r.situacao==='parada');
+  const rows=[['RELATÓRIO DE PRODUÇÃO'],['Data','Equipe','Setor','Período','Viagens','Volume (m³)','Material','Situação'],
+    ...rs.map(r=>[r.data,eq(r.equipe_id)?.nome||'',st(r.setor_id)?.nome||'',reportPeriodLabel(r.periodo),r.viagens||0,r.volume||0,r.material||'',r.status==='parada'||r.situacao==='parada'?'Parada':r.status==='andamento'?'Pré-registro':'Concluído']),
+    [],['PARADAS E MOTIVOS'],['Data','Equipe','Setor','Período','Motivo','Veículo','Observações'],
+    ...stops.map(r=>[r.data,eq(r.equipe_id)?.nome||'',st(r.setor_id)?.nome||'',reportPeriodLabel(r.periodo),reportStopReason(r.motivo_parada),DB.veiculos.find(v=>v.id===r.veiculo_id)?.codigo||'',r.observacoes||''])];
+  const csv='\\ufeff'+rows.map(a=>a.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(';')).join('\\n');
+  const a=document.createElement('a');a.href=window.URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download='relatorio-limpeza-urbana.csv';a.click();window.URL.revokeObjectURL(a.href);
 };
-
 $('loginForm').onsubmit=async e=>{
   e.preventDefault(); $('authmsg').textContent='Entrando...';
   try{
