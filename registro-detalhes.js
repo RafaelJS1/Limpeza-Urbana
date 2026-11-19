@@ -9,7 +9,7 @@
     const equipe=document.getElementById('fequipe')?.value||'';
     const setor=document.getElementById('fsetor')?.value||'';
     const periodo=document.getElementById('fperiodo')?.value||'';
-    return DB.registros.filter(r=>(!fini||r.data>=fini)&&(!ffim||r.data<=ffim)&&(!equipe||r.equipe_id===equipe)&&(!setor||r.setor_id===setor)&&(!periodo||(r.periodo||'integral')===periodo));
+    return DB.registros.filter(r=>(!fini||r.data>=fini)&&(!ffim||r.data<=ffim)&&(!equipe||r.equipe_id===equipe)&&(!setor||r.setor_id===setor)&&(!periodo||(r.periodo||'integral')===periodo)).slice().sort((a,b)=>(b.data||'').localeCompare(a.data||''));
   }
 
   function closeDetail(){document.getElementById('registroDetailModal')?.remove()}
