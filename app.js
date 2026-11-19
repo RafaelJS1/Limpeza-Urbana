@@ -264,7 +264,7 @@ $('csvBtn').onclick=()=>{
     ...rs.map(r=>[r.data,eq(r.equipe_id)?.nome||'',st(r.setor_id)?.nome||'',reportPeriodLabel(r.periodo),r.viagens||0,r.volume||0,r.material||'',r.status==='parada'||r.situacao==='parada'?'Parada':r.status==='andamento'?'Pré-registro':'Concluído']),
     [],['PARADAS E MOTIVOS'],['Data','Equipe','Setor','Período','Motivo','Veículo','Observações'],
     ...stops.map(r=>[r.data,eq(r.equipe_id)?.nome||'',st(r.setor_id)?.nome||'',reportPeriodLabel(r.periodo),reportStopReason(r.motivo_parada),DB.veiculos.find(v=>v.id===r.veiculo_id)?.codigo||'',r.observacoes||''])];
-  const csv='\\ufeff'+rows.map(a=>a.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(';')).join('\\n');
+  const csv='\ufeff'+rows.map(a=>a.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(';')).join('\n');
   const a=document.createElement('a');a.href=window.URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download='relatorio-limpeza-urbana.csv';a.click();window.URL.revokeObjectURL(a.href);
 };
 $('loginForm').onsubmit=async e=>{
